@@ -1,0 +1,58 @@
+# Nada del juego sale de aquí. Bloqueado por extensión, para que no entre por descuido.
+
+# imágenes de disco y volcados
+*.bin
+*.cue
+*.iso
+*.img
+*.chd
+*.pbp
+*.ecm
+
+# BIOS
+*.BIN
+*.rom
+SCPH*
+scph*
+
+# ejecutables y paquetes
+*.exe
+*.dll
+*.pdb
+*.ilk
+*.msix
+*.msixbundle
+*.appx
+*.appxbundle
+*.appxsym
+*.appxupload
+
+# certificados de firma: el tuyo es tuyo
+*.pfx
+*.p12
+*.cer
+*.snk
+
+# partidas y estados
+*.mcd
+*.mcr
+*.pst
+saves/
+
+# el arte del paquete lo pone quien empaqueta (docs/ASSETS.md); aquí no se distribuye
+package/Assets/*.png
+
+# parche_fondo_cadena.py no entra: arreglaba la cadena de dibujo dentro del plugin del mod 16:9,
+# y ese arreglo ya viene incorporado en el plugin que publica jajdp/sfex2p-widescreen.
+tools/parche_fondo_cadena.py
+
+# compilación y basura de editor
+build*/
+__pycache__/
+*.pyc
+.vs/
+.vscode/
+*.log
+*.tmp
+Thumbs.db
+desktop.ini
