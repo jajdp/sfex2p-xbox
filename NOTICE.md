@@ -41,8 +41,9 @@ David Ludwig*, with the changes this port needed (the package's temp directory, 
 it seeds on every boot, and the log redirection). The original is part of
 [SDL](https://github.com/libsdl-org/SDL).
 
-The screenshot under `docs/images/` shows the game running on a console, to document that this
-port works. It remains the property of its respective owners.
+**There are no screenshots here at all.** The one that used to be — the game's title screen on a
+console — is mostly Capcom's logo and trademark, so it was removed. A screenshot would earn its
+place by showing the work; that one showed someone else's artwork.
 
 ## Takedown and contact
 

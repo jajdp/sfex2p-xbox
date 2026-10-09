@@ -6,11 +6,13 @@ Mode**, as a UWP package you build and sign yourself.
 
 *(Español: [README.es.md](README.es.md))*
 
-![The attract demo running on an Xbox Series in Developer Mode: full backdrop, 16:9, 60 FPS](docs/images/xbox-fondo-arreglado.png)
-
 It is not a theory: the game boots, goes through the BIOS and the Capcom presentation, reaches the title
 screen and plays with a controller, in 16:9, at **60 FPS**, and it comes back where you left it after the
 console suspends it.
+
+*There was a screenshot of that here. It is gone on purpose: it was the title screen, which is mostly
+Capcom's logo and trademark, and leading a page with someone else's artwork is not what
+[`NOTICE.md`](NOTICE.md) says this project does.*
 
 ## What this repository is
 

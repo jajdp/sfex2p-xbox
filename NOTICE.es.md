@@ -43,8 +43,9 @@ David Ludwig*, con los cambios que este port necesitaba (el directorio temporal 
 carpeta de datos que siembra en cada arranque y la redirección del registro). El original forma
 parte de [SDL](https://github.com/libsdl-org/SDL).
 
-La captura de `docs/images/` muestra el juego corriendo en una consola, para documentar que
-este port funciona. Sigue siendo propiedad de sus respectivos titulares.
+**Aquí no hay ninguna captura.** La que había —la pantalla de título del juego en una consola—
+es sobre todo el logotipo y la marca de Capcom, así que se quitó. Una captura se ganaría su
+sitio enseñando el trabajo; esa enseñaba arte ajeno.
 
 ## Retirada y contacto
 

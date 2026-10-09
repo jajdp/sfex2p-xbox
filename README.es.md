@@ -7,11 +7,13 @@ tú.
 
 *(English: [README.md](README.md))*
 
-![La demo de atracción en una Xbox Series en modo desarrollador: fondo completo, 16:9, 60 FPS](docs/images/xbox-fondo-arreglado.png)
-
 No es teoría: el juego arranca, pasa por la BIOS y la presentación de Capcom, llega al título y
 se juega con mando, en 16:9, a **60 FPS**, y vuelve donde lo dejaste cuando la consola lo
 suspende.
+
+*Aquí había una captura de eso. No está a propósito: era la pantalla de título, que es sobre todo
+el logotipo y la marca de Capcom, y encabezar una página con arte ajeno no es lo que dice
+[`NOTICE.es.md`](NOTICE.es.md) que hace este proyecto.*
 
 ## Qué es este repositorio
 
