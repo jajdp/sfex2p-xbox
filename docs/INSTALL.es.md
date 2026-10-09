@@ -114,13 +114,91 @@ la consola aparte, en el paso 9.
 
 ## 8. Instalarlo en la consola
 
-Por el Device Portal (`https://<ip-de-la-consola>:11443`), en **My games & apps → Add**, subiendo
-el `.msix`. La primera vez hay que instalar también el paquete de marco de VCLibs, como
-dependencia.
+### 8.1 La dependencia: VCLibs
 
-Si la primera instalación falla con *not enough space*, instala primero un paquete pequeño de
-semilla y encima el de verdad: el modo desarrollador reserva su espacio de una forma con la que
-una primera instalación grande se tropieza.
+El ejecutable importa el CRT del App Container —`msvcp140_app.dll`, `vcruntime140_app.dll`,
+`vccorlib140_app.dll`—, que no va dentro del paquete sino en un **paquete de marco** que hay que
+instalar una vez en la consola. El manifiesto lo declara:
+
+```xml
+<PackageDependency Name="Microsoft.VCLibs.140.00" MinVersion="14.0.33519.0"
+                   Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US" />
+```
+
+**El archivo que hace falta es `Microsoft.VCLibs.x64.14.00.appx`** (unos 900 KB). Ya lo tienes:
+lo instalan el SDK de Windows y Visual Studio, aquí —
+
+```
+C:\Program Files (x86)\Microsoft SDKs\Windows Kits\10\ExtensionSDKs\Microsoft.VCLibs\14.0\Appx\Retail\x64\Microsoft.VCLibs.x64.14.00.appx
+```
+
+⚠ **Hay dos archivos fáciles de coger por error, y ninguno vale:**
+
+- `Microsoft.VCLibs.x64.14.00.Desktop.appx`, que es al que apunta `aka.ms`, es la versión del
+  **puente de escritorio**. Es otro paquete, y la consola seguirá diciendo que falta la
+  dependencia.
+- `…\Appx\**Debug**\x64\Microsoft.VCLibs.x64.Debug.14.00.appx` solo sirve si firmas en
+  configuración Debug. Este port se compila en Release.
+
+Pasándole `-VCLibs <esa ruta>` a `empaquetar-uwp.ps1`, lo copia a `<salida>\Dependencies\`, así
+el `.msix` y su dependencia quedan juntos y no hay que buscarla con el portal abierto.
+
+Se instala **una vez por consola**: los paquetes siguientes, y las versiones siguientes de este,
+ya la encuentran.
+
+### 8.2 Subirlo
+
+En el Device Portal (`https://<ip-de-la-consola>:11443`), en **My games & apps → Add**:
+
+1. **App package** → tu `.msix`.
+2. **Certificate** → no hace falta: el paquete va firmado y el modo desarrollador lo acepta.
+3. **Optional packages / Dependency** → aquí es donde se añade
+   `Microsoft.VCLibs.x64.14.00.appx`, la primera vez.
+4. **Next → Install**, y esperar al *Package successfully registered*.
+
+Si aun así dice que falta la dependencia, lo más seguro es que hayas añadido uno de los dos
+archivos equivocados de 8.1.
+
+### 8.3 Si sale `There is not enough space on the disk`
+
+No es que la consola esté llena, y el mensaje engaña. **La primera instalación de una familia de
+paquetes va a `D:\DevelopmentFiles`**, una partición de unos 5 GB que el modo desarrollador
+guarda justo para eso; las *actualizaciones* de una familia ya registrada van a otro
+almacenamiento. Esa partición se llena con la primera versión de todo lo que hayas instalado
+alguna vez, y **desinstalar un juego no la vacía**: las carpetas se quedan ahí.
+
+Así que la salida es conseguir que tu paquete entre como **actualización** y no como primera
+instalación, con una *semilla*:
+
+> Una **semilla** es un paquete con la **misma identidad** que el de verdad —mismo
+> `Identity Name` y mismo `Publisher`— pero con una **versión más baja** y un **ejecutable
+> mínimo** dentro. No tiene que arrancar nunca. Su único trabajo es registrar la familia en la
+> consola, gastando poco, para que el paquete de verdad llegue como una actualización.
+
+1. Haz una carpeta con cualquier `.exe` pequeño renombrado a `Street_Fighter_EX2_Plus.exe` (con
+   un par de MB sobra: no se ejecuta nunca):
+
+   ```powershell
+   New-Item -ItemType Directory -Force <build-semilla> | Out-Null
+   Copy-Item C:\Windows\System32\notepad.exe <build-semilla>\Street_Fighter_EX2_Plus.exe
+   ```
+
+2. Empaquétala con una **versión más baja** que la de verdad, y todo lo demás igual:
+
+   ```powershell
+   pwsh -File tools/empaquetar-uwp.ps1 -Build <build-semilla> -Juego <proyecto> -Salida <salida> `
+        -Certificado <huella> -Version 0.0.0.1
+   ```
+
+3. Instala primero esa (8.2), con la dependencia de VCLibs.
+4. Después vuelve a empaquetar el de verdad con su versión —`-Version 1.0.0.0`— e instálalo: el
+   portal lo toma como actualización. Y entra.
+
+De ahí en adelante, con mantener la versión real por encima de la de la semilla, no vuelves a
+toparte con esto en este paquete. Si `D:\DevelopmentFiles` está de verdad lleno de primeras
+versiones huérfanas de otras cosas, se pueden borrar por la API de archivos del portal con
+`knownfolderid=DevelopmentFiles` —primero los archivos y después las carpetas ya vacías—, pero
+eso es mantenimiento de tu consola, no parte de instalar esto.
 
 ## 9. El disco y la BIOS
 

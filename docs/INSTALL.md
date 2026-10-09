@@ -114,13 +114,90 @@ it** — they go to the console separately, in step 9.
 
 ## 8. Install it on the console
 
-Through the Device Portal (`https://<console-ip>:11443`), **My games & apps → Add**, and upload
-the `.msix`. The VCLibs framework package has to be installed too, as a dependency, the first
-time.
+### 8.1 The dependency: VCLibs
 
-If the first install fails with *not enough space*, install a small seed package first and then
-the real one on top: Developer Mode reserves its space in a way that a first big install can
-trip over.
+The executable imports the App Container CRT — `msvcp140_app.dll`, `vcruntime140_app.dll`,
+`vccorlib140_app.dll` — which does not live in the package but in a **framework package** that
+has to be installed on the console once. The manifest declares it:
+
+```xml
+<PackageDependency Name="Microsoft.VCLibs.140.00" MinVersion="14.0.33519.0"
+                   Publisher="CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US" />
+```
+
+**The file you need is `Microsoft.VCLibs.x64.14.00.appx`** (~900 KB). You already have it: the
+Windows SDK and Visual Studio install it here —
+
+```
+C:\Program Files (x86)\Microsoft SDKs\Windows Kits\10\ExtensionSDKs\Microsoft.VCLibs\14.0\Appx\Retail\x64\Microsoft.VCLibs.x64.14.00.appx
+```
+
+⚠ **Two files are easy to grab by mistake and neither works:**
+
+- `Microsoft.VCLibs.x64.14.00.Desktop.appx`, the one `aka.ms` links to, is the **Desktop Bridge**
+  build. Different package, and the console will keep saying the dependency is missing.
+- `…\Appx\**Debug**\x64\Microsoft.VCLibs.x64.Debug.14.00.appx` is only for packages signed in
+  Debug configuration. This port builds Release.
+
+Passing `-VCLibs <that path>` to `empaquetar-uwp.ps1` copies it into `<out>\Dependencies\`, so
+the `.msix` and its dependency end up side by side and you are not hunting for it at the portal.
+
+It is installed **once per console**: later packages, and later versions of this one, already
+find it.
+
+### 8.2 Upload it
+
+In the Device Portal (`https://<console-ip>:11443`), **My games & apps → Add**:
+
+1. **App package** → your `.msix`.
+2. **Certificate** → not needed: the package is signed and Developer Mode trusts it once the
+   certificate is trusted on the console, which happens when the portal accepts the install.
+3. **Optional packages / Dependency** → add `Microsoft.VCLibs.x64.14.00.appx` here, the first
+   time.
+4. **Next → Install**, and wait for *Package successfully registered*.
+
+If it reports the dependency as missing after all this, you almost certainly added one of the
+two wrong files from 8.1.
+
+### 8.3 If it says `There is not enough space on the disk`
+
+This is not your console being full, and the message is misleading. **The first install of a
+package family goes to `D:\DevelopmentFiles`**, a partition of about 5 GB that Developer Mode
+keeps for exactly that; later *updates* of an already-registered family go somewhere else. That
+partition fills up with the first version of everything you have ever sideloaded, and
+**uninstalling a game does not empty it** — the folders stay behind.
+
+So the fix is to make your package an **update** instead of a first install, with a *seed*:
+
+> A **seed** is a package with the **same identity** as the real one — same `Identity Name` and
+> same `Publisher` — but a **lower version** and a **tiny executable** inside. It never has to
+> run. Its only job is to register the family on the console, cheaply, so that the real package
+> arrives as an update.
+
+1. Make a folder with any small `.exe` renamed to `Street_Fighter_EX2_Plus.exe` (a couple of MB
+   is plenty — it is never launched):
+
+   ```powershell
+   New-Item -ItemType Directory -Force <seed-build> | Out-Null
+   Copy-Item C:\Windows\System32\notepad.exe <seed-build>\Street_Fighter_EX2_Plus.exe
+   ```
+
+2. Package it with a **lower version** than the real one, everything else the same:
+
+   ```powershell
+   pwsh -File tools/empaquetar-uwp.ps1 -Build <seed-build> -Juego <project> -Salida <out> `
+        -Certificado <thumbprint> -Version 0.0.0.1
+   ```
+
+3. Install that one first (8.2), with the VCLibs dependency.
+4. Then repackage and install the real one with its own version — `-Version 1.0.0.0` — and the
+   portal takes it as an update. It goes in.
+
+Keep the real version above the seed's from then on, and you will not meet this again for this
+package. If `D:\DevelopmentFiles` is genuinely full of orphaned first versions of other things,
+they can be deleted through the portal's file API with
+`knownfolderid=DevelopmentFiles` — files first, then the emptied folders — but that is housekeeping
+for your console, not part of installing this.
 
 ## 9. The disc and the BIOS
 
