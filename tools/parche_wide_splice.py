@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # El 16:9 a 60 FPS en la consola: la pasada ancha deja de redibujar el centro.
 #
 # EL PROBLEMA (medido en la consola el 2026-10-06, con la demostración del propio juego y el cronómetro
@@ -23,12 +22,8 @@
 #
 # Idempotente y todo o nada; escritura atómica. Los comentarios del código van en inglés, como el resto del runtime.
 # Uso: parche_wide_splice.py <raíz del proyecto del juego>
-import os
-import sys
+import parchear
 
-if len(sys.argv) < 2:
-    sys.exit('uso: %s <ruta de la raiz del proyecto del juego>' % os.path.basename(sys.argv[0]))
-RAIZ = sys.argv[1]
 MARCA = 'Recompilaciones (2026-10-06): native-wide centre splice'
 
 # --- 1. las ayudas, junto a wide_dx ------------------------------------------------------------------
@@ -73,14 +68,13 @@ BD_NUEVO = '''            b.center = (float)g_wide_cur_base + (float)native_w / 
             g_wide_splice = 0;'''
 
 # --- 3. los cuatro triángulos -------------------------------------------------------------------------
-def tri(nombre, args_extra):
-    """Devuelve (viejo, nuevo) para un bloque de triángulo de la pasada ancha."""
-    viejo = ('''        WideBd bd = wide_bd_get();
-        ''' + nombre + '''(&wt,
-''')
-    return viejo
-
-
+# Van escritos uno a uno y no generados: cada rasterizador recibe argumentos distintos (color, los tres
+# vértices sombreados, las coordenadas de textura) y con la sangría que ya tiene el archivo, que es parte
+# del ancla.
+#
+# ⚠ La guarda queda SIN llaves y con la llamada a su misma altura, a propósito: `parche_wide_bandas.py`
+# —que se aplica después— busca con una expresión regular justo esa forma para sustituirla por su bucle
+# de bandas. Si se le ponen llaves o se cambia la sangría, ese otro parche deja de encontrarla.
 TRIS = [
     # (llamada, texto original de los argumentos, texto nuevo)
     ('''        WideBd bd = wide_bd_get();
@@ -189,8 +183,8 @@ PRES_NUEVO = '''    /* ''' + MARCA + ''': the centre columns come from canonical
 
 
 # --- 5. los rectángulos con textura -------------------------------------------------------------------
-# La guarda va pegada al `else` a propósito: parche_wide_bandas.py toma los espacios que haya delante
-# del `if` como sangría del bucle que escribe en su lugar.
+# La guarda va pegada al `else`, por el mismo contrato que se explica en TRIS: parche_wide_bandas.py
+# toma los espacios que preceden al `if` como sangría para el bucle que escribe en su lugar.
 R1_VIEJO = """        } else
             raster_textured_rect(&wt, (x+dx)*s, y*s, w*s, h*s, u, v, clut_x, clut_y, texpage);"""
 
@@ -208,23 +202,10 @@ RECTS = [(R1_VIEJO, R1_NUEVO), (R2_VIEJO, R2_NUEVO)]
 
 
 def main():
-    ruta = os.path.join(RAIZ, 'psxrecomp', 'runtime', 'src', 'gpu_sw_renderer.c')
-    with open(ruta, 'rb') as f:
-        crudo = f.read().decode('utf-8')
-    eol = '\r\n' if '\r\n' in crudo else '\n'
-    t = crudo.replace('\r\n', '\n')
-    if MARCA in t:
-        print('el parche ya estaba')
-        return
     cambios = [(H_VIEJO, H_NUEVO), (BD_VIEJO, BD_NUEVO), (PRES_VIEJO, PRES_NUEVO)] + TRIS + RECTS
-    for viejo, nuevo in cambios:
-        if t.count(viejo) != 1:
-            raise SystemExit('gpu_sw_renderer.c: %d apariciones de %r' % (t.count(viejo), viejo[:70]))
-        t = t.replace(viejo, nuevo)
-    with open(ruta + '.tmp', 'w', encoding='utf-8', newline='') as f:
-        f.write(t.replace('\n', eol))
-    os.replace(ruta + '.tmp', ruta)
-    print('gpu_sw_renderer.c: empalme del centro (%d cambios)' % len(cambios))
+    parchear.informe(parchear.aplicar(
+        parchear.runtime(parchear.raiz(), 'src', 'gpu_sw_renderer.c'), cambios, MARCA,
+        'gpu_sw_renderer.c: empalme del centro (%d cambios)' % len(cambios)))
 
 
 if __name__ == '__main__':

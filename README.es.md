@@ -11,10 +11,6 @@ No es teoría: el juego arranca, pasa por la BIOS y la presentación de Capcom, 
 se juega con mando, en 16:9, a **60 FPS**, y vuelve donde lo dejaste cuando la consola lo
 suspende.
 
-*Aquí había una captura de eso. No está a propósito: era la pantalla de título, que es sobre todo
-el logotipo y la marca de Capcom, y encabezar una página con arte ajeno no es lo que dice
-[`NOTICE.es.md`](NOTICE.es.md) que hace este proyecto.*
-
 ## Qué es este repositorio
 
 **Una receta y las herramientas que la aplican.** El framework de este juego no tiene soporte

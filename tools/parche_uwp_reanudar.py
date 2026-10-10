@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # «Volver donde lo dejaste»: reanudar tras la terminación en segundo plano.
 #
 # En el modo desarrollador, la Xbox **TERMINA** un juego UWP que pasa a segundo plano (Microsoft, *System resources
@@ -6,10 +5,9 @@
 # de Home la aplicación se relanza de cero. No es un fallo del port: el sistema la relanza con
 # `PreviousExecutionState = Terminated` (3) y espera que la aplicación se restaure sola.
 #
-# Receta ya probada en Street Fighter EX Plus Alpha (su `parche_reanudar.py`), portada aquí. Lo bueno de este
-# framework es que su sistema de estados **ya funciona**: `boot_state.c` serializa la máquina entera y
-# `savestate.c` lo ejecuta en un punto seguro (block leader, `in_exception == 0`), que es justo lo que allí hubo que
-# arreglar a mano.
+# Lo que hace esto viable es que el sistema de estados del framework **ya funciona**: `boot_state.c` serializa
+# la máquina entera y `savestate.c` lo ejecuta en un punto seguro (block leader, `in_exception == 0`). Sin un
+# serializador que funcione no habría nada que guardar al irse al fondo.
 #
 # Qué hace el parche:
 #   - `savestate.h/.c`: una ranura reservada, **99** (`SAVESTATE_SLOT_SUSPEND`), fuera de las 12 del jugador, con su
@@ -23,17 +21,13 @@
 #     Terminated), que es como se prueba sin consola.
 #
 # El estado de activación lo pone la entrada UWP en `g_psx_prev_exec_state`; en la consola `AppInstance::
-# GetActivatedEventArgs()` devuelve nulo, así que quien lo anota de verdad es el SDL2 parcheado que se reutiliza del
-# otro port (`SDL_WinRTApp::OnAppActivated`).
+# GetActivatedEventArgs()` devuelve nulo, así que quien lo anota de verdad es el SDL2 compilado para WindowsStore,
+# en `SDL_WinRTApp::OnAppActivated`.
 #
 # Idempotente y todo o nada; escritura atómica. Los comentarios del código van en inglés, como el resto del runtime.
 # Uso: parche_uwp_reanudar.py <raíz del proyecto del juego>
-import os
-import sys
+import parchear
 
-if len(sys.argv) < 2:
-    sys.exit('uso: %s <ruta de la raiz del proyecto del juego>' % os.path.basename(sys.argv[0]))
-RAIZ = sys.argv[1]
 MARCA = 'Recompilaciones (2026-10-06): resume after termination'
 
 # ---------------------------------------------------------------- savestate.h
@@ -97,7 +91,7 @@ M_FUN_NUEVO = '''/* ==== ''' + MARCA + ''' ====
  * suspended nothing can be saved any more — and restored when the system relaunches the app after
  * terminating it. The UWP entry point publishes that activation state in g_psx_prev_exec_state
  * (3 = Terminated); on the console AppInstance returns null, so the value really comes from the
- * patched SDL2 reused from the EX Plus Alpha port (SDL_WinRTApp::OnAppActivated).
+ * SDL2 built for WindowsStore (SDL_WinRTApp::OnAppActivated).
  * Off on the desktop unless PSX_RESUME_STATE=1; PSX_PREV_EXEC_STATE=<n> fakes the relaunch there. */
 extern "C" int g_psx_prev_exec_state;
 
@@ -190,7 +184,7 @@ static void resume_state_maybe_restore(void) {
 static int fps_telemetry_enabled(void) {'''
 
 M_TICK_VIEJO = '''    if (fps_telemetry_enabled() && !psx_netplay_in_load_barrier()) {'''
-M_TICK_NUEVO = '''    resume_state_tick();   /* Recompilaciones (2026-10-06): resume after termination */
+M_TICK_NUEVO = '''    resume_state_tick();   /* ''' + MARCA + ''' */
     if (fps_telemetry_enabled() && !psx_netplay_in_load_barrier()) {'''
 
 M_TOAST_VIEJO = '''extern "C" void psx_frontend_on_savestate_notify(int is_load, int slot, int ok) {
@@ -199,8 +193,8 @@ M_TOAST_VIEJO = '''extern "C" void psx_frontend_on_savestate_notify(int is_load,
 M_TOAST_NUEVO = '''extern "C" void psx_frontend_on_savestate_notify(int is_load, int slot, int ok) {
     char buf[64];
     const int disp = slot + 1;
-    /* Recompilaciones (2026-10-06): the reserved resume slot is the port's own business — it is written
-     * every few seconds while playing, so it must not put a toast on screen. */
+    /* ''' + MARCA + '''. The reserved slot is the port's own business: it is
+     * written every few seconds while playing, so it must not put a toast on screen. */
     if (slot == SAVESTATE_SLOT_SUSPEND) {
         if (!is_load && ok) psx_savestate_menu_note_slots_changed();
         if (is_load && ok) savestate_input_guard_arm();
@@ -229,37 +223,21 @@ M_CFG_NUEVO = '''                            bios_token, openbios_ws);
         psx_rewind_set_depth((uint32_t)g_rewind_depth);'''
 
 
-def parchear(ruta, cambios, marca=MARCA):
-    with open(ruta, 'rb') as f:
-        crudo = f.read().decode('utf-8')
-    eol = '\r\n' if '\r\n' in crudo else '\n'
-    t = crudo.replace('\r\n', '\n')
-    if marca in t:
-        return False
-    for viejo, nuevo in cambios:
-        if t.count(viejo) != 1:
-            raise SystemExit('%s: %d apariciones de %r' % (os.path.basename(ruta), t.count(viejo), viejo[:60]))
-        t = t.replace(viejo, nuevo)
-    with open(ruta + '.tmp', 'w', encoding='utf-8', newline='') as f:
-        f.write(t.replace('\n', eol))
-    os.replace(ruta + '.tmp', ruta)
-    return True
-
-
 def main():
-    inc = os.path.join(RAIZ, 'psxrecomp', 'runtime', 'include')
-    src = os.path.join(RAIZ, 'psxrecomp', 'runtime', 'src')
-    hechos = []
-    if parchear(os.path.join(inc, 'savestate.h'), [(H_VIEJO, H_NUEVO), (H_DISCARD_VIEJO, H_DISCARD_NUEVO)]):
-        hechos.append('savestate.h (la ranura reservada)')
-    if parchear(os.path.join(src, 'savestate.c'),
-                [(C_PATH_VIEJO, C_PATH_NUEVO), (C_SAVE_VIEJO, C_SAVE_NUEVO),
-                 (C_LOAD_VIEJO, C_LOAD_NUEVO), (C_DISCARD_VIEJO, C_DISCARD_NUEVO)]):
-        hechos.append('savestate.c (ruta, peticiones y descarte)')
-    if parchear(os.path.join(src, 'main.cpp'),
-                [(M_FUN_VIEJO, M_FUN_NUEVO), (M_TICK_VIEJO, M_TICK_NUEVO), (M_EV_VIEJO, M_EV_NUEVO), (M_TOAST_VIEJO, M_TOAST_NUEVO), (M_CFG_VIEJO, M_CFG_NUEVO)]):
-        hechos.append('main.cpp (guardar al irse al fondo y restaurar al volver)')
-    print('; '.join(hechos) if hechos else 'el parche ya estaba')
+    raiz = parchear.raiz()
+    parchear.informe(
+        parchear.aplicar(parchear.runtime(raiz, 'include', 'savestate.h'),
+                         [(H_VIEJO, H_NUEVO), (H_DISCARD_VIEJO, H_DISCARD_NUEVO)], MARCA,
+                         'savestate.h (la ranura reservada)'),
+        parchear.aplicar(parchear.runtime(raiz, 'src', 'savestate.c'),
+                         [(C_PATH_VIEJO, C_PATH_NUEVO), (C_SAVE_VIEJO, C_SAVE_NUEVO),
+                          (C_LOAD_VIEJO, C_LOAD_NUEVO), (C_DISCARD_VIEJO, C_DISCARD_NUEVO)], MARCA,
+                         'savestate.c (ruta, peticiones y descarte)'),
+        parchear.aplicar(parchear.runtime(raiz, 'src', 'main.cpp'),
+                         [(M_FUN_VIEJO, M_FUN_NUEVO), (M_TICK_VIEJO, M_TICK_NUEVO),
+                          (M_EV_VIEJO, M_EV_NUEVO), (M_TOAST_VIEJO, M_TOAST_NUEVO),
+                          (M_CFG_VIEJO, M_CFG_NUEVO)], MARCA,
+                         'main.cpp (guardar al irse al fondo y restaurar al volver)'))
 
 
 if __name__ == '__main__':

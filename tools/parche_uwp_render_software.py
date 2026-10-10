@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # El renderizador de la consola es el de software, y hay que saberlo ANTES de crear la ventana.
 #
 # En la consola no hay OpenGL (el backend GL es un sustituto inerte, `parche_uwp_gl.py`). El runtime ya lo detecta
@@ -10,12 +9,8 @@
 #
 # Idempotente y todo o nada; escritura atómica.
 # Uso: parche_uwp_render_software.py <raíz del proyecto del juego>
-import os
-import sys
+import parchear
 
-if len(sys.argv) < 2:
-    sys.exit('uso: %s <ruta de la raiz del proyecto del juego>' % os.path.basename(sys.argv[0]))
-RAIZ = sys.argv[1]
 MARCA = 'Recompilaciones (2026-10-05): UWP — software renderer'
 
 ANCLA = '''    s_netplay_gl_present = 0;
@@ -42,21 +37,9 @@ NUEVO = ''' * present not yet cpu-auth — fall back to a software window. */
 
 
 def main():
-    ruta = os.path.join(RAIZ, 'psxrecomp', 'runtime', 'src', 'main.cpp')
-    with open(ruta, 'rb') as f:
-        crudo = f.read().decode('utf-8')
-    eol = '\r\n' if '\r\n' in crudo else '\n'
-    t = crudo.replace('\r\n', '\n')
-    if MARCA in t:
-        print('el parche ya estaba')
-        return
-    if t.count(VIEJO) != 1:
-        raise SystemExit('main.cpp: %d apariciones del ancla' % t.count(VIEJO))
-    t = t.replace(VIEJO, NUEVO)
-    with open(ruta + '.tmp', 'w', encoding='utf-8', newline='') as f:
-        f.write(t.replace('\n', eol))
-    os.replace(ruta + '.tmp', ruta)
-    print('main.cpp: en la consola, renderizador por software antes de crear la ventana')
+    parchear.informe(parchear.aplicar(
+        parchear.runtime(parchear.raiz(), 'src', 'main.cpp'),
+        [(VIEJO, NUEVO)], MARCA, 'main.cpp: en la consola, renderizador por software antes de crear la ventana'))
 
 
 if __name__ == '__main__':

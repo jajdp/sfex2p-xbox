@@ -1,7 +1,9 @@
-# Nada del juego sale de aquí. Bloqueado por extensión, para que no entre por descuido.
+# Nothing that belongs to the game ever goes in here. Blocked by extension, so it cannot slip in
+# by accident, and not as a substitute for reading NOTICE.md.
 
-# imágenes de disco y volcados
+# disc images and dumps
 *.bin
+*.BIN
 *.cue
 *.iso
 *.img
@@ -10,12 +12,11 @@
 *.ecm
 
 # BIOS
-*.BIN
 *.rom
 SCPH*
 scph*
 
-# ejecutables y paquetes
+# executables, debug info and packages
 *.exe
 *.dll
 *.pdb
@@ -27,32 +28,52 @@ scph*
 *.appxsym
 *.appxupload
 
-# certificados de firma: el tuyo es tuyo
+# signing certificates: yours is yours
 *.pfx
 *.p12
 *.cer
 *.snk
 
-# partidas y estados
+# saves and states
 *.mcd
 *.mcr
+*.srm
+*.sav
 *.pst
+*.state
 saves/
 
-# el arte del paquete lo pone quien empaqueta (docs/ASSETS.md); aquí no se distribuye
-package/Assets/*.png
+# leftovers of a game project, in case this is cloned inside one
+build/
+build-*/
+logs/
+disc/
+bios/
+mods/state.toml
+psx_freeze_dump_*.json
+psx_last_run_report.json
+overlay_captures*.json
 
-# parche_fondo_cadena.py no entra: arreglaba la cadena de dibujo dentro del plugin del mod 16:9,
-# y ese arreglo ya viene incorporado en el plugin que publica jajdp/sfex2p-widescreen.
-tools/parche_fondo_cadena.py
-
-# compilación y basura de editor
-build*/
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+.venv/
+venv/
+
+# editors and OS
 .vs/
 .vscode/
+.idea/
+*.swp
 *.log
 *.tmp
 Thumbs.db
 desktop.ini
+.DS_Store
+
+# The package tiles are supplied by whoever packages (docs/ASSETS.md); no game art is distributed here.
+package/Assets/*.png
+
+# parche_fondo_cadena.py stays out: it fixed the drawing chain inside the 16:9 mod's plugin, and that
+# fix is already part of the plugin jajdp/sfex2p-widescreen publishes.
+tools/parche_fondo_cadena.py

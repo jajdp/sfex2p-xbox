@@ -25,12 +25,14 @@ provides or can provide.
 
 ## What it does contain of other people's work
 
-**Patches against the PSXRecomp framework.** The sixteen patch scripts quote **117 lines** of
-the framework's source in total — the anchors each patch checks before writing, so that it
-fails safely instead of corrupting a tree it does not recognise. PSXRecomp is published by its
-author under the PolyForm Noncommercial License 1.0.0, which permits noncommercial derivative
-works; this repository is such a derivative, and is released under
-[that same license](LICENSE).
+**Patches against the PSXRecomp framework.** The sixteen patch scripts — all the patching code
+there is here — quote **117 lines** of the framework's source in total: the anchors each patch
+checks before writing, so that it fails safely instead of corrupting a tree it does not
+recognise. PSXRecomp is published by its author under the
+PolyForm Noncommercial License 1.0.0, which permits noncommercial derivative works; this
+repository is such a derivative, and is released under [that same license](LICENSE) — the
+canonical text from polyformproject.org, which is what the `PolyForm-Noncommercial-1.0.0`
+identifier names. The copy the framework distributes is an abridged variant of it.
 
 **Zero lines from the game project.** `strider973/Street-Fighter-EX2-Plus-Recompiled` carries no
 license, so nothing of it is reproduced here. The installer anchors itself on CMake's own

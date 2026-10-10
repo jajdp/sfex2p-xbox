@@ -102,9 +102,9 @@ hash. Fixed from both ends: the packer strips that key from the bundled `game.to
 
 **Measured, not guessed.** In 16:9 the fights ran at **51–55 FPS**; in 4:3, at 60–62. The cause:
 in wide mode the software rasteriser draws **every primitive twice**, once into canonical VRAM
-and once into the wide surface. Timing that second pass (`tools/diagnostics/diag_perf_ancho.py`,
-which measures it and prints it next to the FPS counter) gave **3.4–3.6 ms of every frame**, at
-~25 000 primitives per second. A 60 Hz frame is 16.68 ms.
+and once into the wide surface. Timing that second pass — with a throwaway patch that wrapped
+each wide block in a performance counter and printed the total next to the FPS readout — gave
+**3.4–3.6 ms of every frame**, at ~25 000 primitives per second. A 60 Hz frame is 16.68 ms.
 
 The idea: the centre of the wide surface is a **1:1 copy of VRAM** — the two differ by the
 integer translation `wide_dx()`, so identical inputs give identical pixels. The only thing the

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # El disco, ANTES de validar los mods.
 #
 # El framework comprueba los paquetes de mods —y con ellos la huella del disco que cada uno exige— **antes** de
@@ -15,12 +14,8 @@
 #
 # Idempotente y todo o nada; escritura atómica.
 # Uso: parche_uwp_disco_mods.py <raíz del proyecto del juego>
-import os
-import sys
+import parchear
 
-if len(sys.argv) < 2:
-    sys.exit('uso: %s <ruta de la raiz del proyecto del juego>' % os.path.basename(sys.argv[0]))
-RAIZ = sys.argv[1]
 MARCA = 'Recompilaciones (2026-10-05): UWP — disc before mods'
 
 VIEJO = '''    {
@@ -54,21 +49,9 @@ NUEVO = '''#if defined(PSX_UWP)
 
 
 def main():
-    ruta = os.path.join(RAIZ, 'psxrecomp', 'runtime', 'src', 'main.cpp')
-    with open(ruta, 'rb') as f:
-        crudo = f.read().decode('utf-8')
-    eol = '\r\n' if '\r\n' in crudo else '\n'
-    t = crudo.replace('\r\n', '\n')
-    if MARCA in t:
-        print('el parche ya estaba')
-        return
-    if t.count(VIEJO) != 1:
-        raise SystemExit('main.cpp: %d apariciones del ancla' % t.count(VIEJO))
-    t = t.replace(VIEJO, NUEVO)
-    with open(ruta + '.tmp', 'w', encoding='utf-8', newline='') as f:
-        f.write(t.replace('\n', eol))
-    os.replace(ruta + '.tmp', ruta)
-    print('main.cpp: en la consola, el disco se resuelve antes de comprobar los mods')
+    parchear.informe(parchear.aplicar(
+        parchear.runtime(parchear.raiz(), 'src', 'main.cpp'),
+        [(VIEJO, NUEVO)], MARCA, 'main.cpp: en la consola, el disco se resuelve antes de comprobar los mods'))
 
 
 if __name__ == '__main__':

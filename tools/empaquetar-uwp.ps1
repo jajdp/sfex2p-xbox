@@ -11,7 +11,12 @@
   Uso (pwsh 7):
     pwsh -File empaquetar-uwp.ps1 -Build <compilación> -Juego <árbol> -Salida <carpeta> `
          -Certificado <huella SHA-1 del certificado en Cert:\CurrentUser\My> [-Version 1.0.0.0] `
-         [-Mod <carpeta de un paquete de mods>] [-VCLibs <Microsoft.VCLibs.x64.14.00.appx>]
+         [-Mod <carpeta de un paquete de mods>] [-VCLibs <Microsoft.VCLibs.x64.14.00.appx>] `
+         [-Conservar]
+
+  -Version cambia la version solo en la copia que va al paquete; el manifiesto de package\ es
+  del repositorio y no se modifica. -Conservar deja en %TEMP% la carpeta de trabajo, que por
+  defecto se borra porque lleva dentro el ejecutable del juego.
 
   -Certificado es la huella (thumbprint) de TU certificado de firma, el mismo cuyo CN tiene que coincidir
   con el Publisher del manifiesto. Cómo crear uno autofirmado: docs\INSTALL.es.md §3.
@@ -25,7 +30,8 @@ param(
     [string]$Ejecutable = 'Street_Fighter_EX2_Plus.exe',
     [string[]]$Mod = @(),
     [string]$VCLibs = '',
-    [string]$Sdk = ''
+    [string]$Sdk = '',
+    [switch]$Conservar
 )
 $ErrorActionPreference = 'Stop'
 
@@ -61,9 +67,11 @@ if ($faltan) {
            "pon los tuyos con las medidas de docs\ASSETS.md" -f ($faltan -join ', '))
 }
 
+# -Version solo cambia la copia que va al paquete: el manifiesto de package\ es del repositorio y
+# no se toca, para que empaquetar no deje el arbol modificado ni herede la version a quien lo use
+# despues. La copia se escribe mas abajo, como AppxManifest.xml, desde esta variable.
 if ($Version) {
     $man = [regex]::Replace($man, '(<Identity[^>]*\bVersion=")[0-9.]+(")', "`${1}$Version`${2}")
-    [IO.File]::WriteAllText($manRuta, $man)
 }
 if ($man -notmatch '<Identity Name="([^"]+)"[\s\S]*?Version="([0-9.]+)"') { throw 'no encuentro la identidad en el manifiesto' }
 $familia, $version = $Matches[1], $Matches[2]
@@ -84,7 +92,8 @@ $trabajo = Join-Path $env:TEMP ('uwp-' + [guid]::NewGuid().ToString('N').Substri
 $cont = Join-Path $trabajo 'contenido'
 New-Item -ItemType Directory -Force (Join-Path $cont 'Assets') | Out-Null
 Copy-Item -LiteralPath $exe -Destination $cont
-Copy-Item -LiteralPath $manRuta -Destination (Join-Path $cont 'AppxManifest.xml')
+# El manifiesto del paquete sale de $man, que es donde -Version ya aplico el cambio.
+[IO.File]::WriteAllText((Join-Path $cont 'AppxManifest.xml'), $man)
 Get-ChildItem -LiteralPath (Join-Path $def 'Assets') -File -Filter *.png | Copy-Item -Destination (Join-Path $cont 'Assets') -Force
 
 # configuración inicial (el primer arranque la copia a LocalState)
@@ -117,26 +126,31 @@ foreach ($m in $Mod) {
     if (-not (Test-Path -LiteralPath $m)) { throw "no encuentro el paquete de mods: $m" }
     Copy-Item -LiteralPath $m -Destination $modsDst -Recurse -Force
 }
-# la BIOS libre que trae el runtime (la SCPH-1001 retail del usuario va al LocalState, no aquí)
+# la BIOS libre que trae el runtime (tu SCPH-1001 retail va al LocalState, no aqui)
 $bios = Join-Path $Build 'bios'
 if (Test-Path -LiteralPath $bios) { Copy-Item -LiteralPath $bios -Destination $cont -Recurse -Force }
 
+# Las herramientas del SDK dicen en su salida POR QUE fallaron, asi que no se descarta: se guarda
+# y se muestra con el error. Un `| Out-Null` aqui deja un «makepri fallo» sin una pista.
+function Invoke-Sdk {
+    param([string]$Exe, [string[]]$Argumentos, [string]$Que)
+    $salida = & "$Sdk\$Exe" @Argumentos 2>&1
+    if ($LASTEXITCODE) { throw ("$Que falló (código $LASTEXITCODE):`n" + ($salida -join "`n")) }
+}
+
 # 2. resources.pri con el nombre de esta identidad
 $pri = Join-Path $trabajo 'priconfig.xml'
-& "$Sdk\makepri.exe" createconfig /cf $pri /dq en-US /o | Out-Null
+Invoke-Sdk 'makepri.exe' @('createconfig', '/cf', $pri, '/dq', 'en-US', '/o') 'makepri createconfig'
 [xml]$cfg = Get-Content -LiteralPath $pri
 foreach ($n in @($cfg.SelectNodes('//packaging'))) { [void]$n.ParentNode.RemoveChild($n) }
 $cfg.Save($pri)
-& "$Sdk\makepri.exe" new /pr $cont /cf $pri /of (Join-Path $cont 'resources.pri') /o | Out-Null
-if ($LASTEXITCODE) { throw 'makepri falló' }
+Invoke-Sdk 'makepri.exe' @('new', '/pr', $cont, '/cf', $pri, '/of', (Join-Path $cont 'resources.pri'), '/o') 'makepri new'
 
 # 3. empaquetar y firmar
 New-Item -ItemType Directory -Force (Join-Path $Salida 'Dependencies') | Out-Null
 $msix = Join-Path $Salida "${familia}_${version}_x64.msix"
-& "$Sdk\makeappx.exe" pack /o /d $cont /p $msix | Out-Null
-if ($LASTEXITCODE) { throw 'makeappx pack falló' }
-& "$Sdk\signtool.exe" sign /fd SHA256 /sha1 $Certificado /s My $msix | Out-Null
-if ($LASTEXITCODE) { throw 'signtool falló' }
+Invoke-Sdk 'makeappx.exe' @('pack', '/o', '/d', $cont, '/p', $msix) 'makeappx pack'
+Invoke-Sdk 'signtool.exe' @('sign', '/fd', 'SHA256', '/sha1', $Certificado, '/s', 'My', $msix) 'signtool'
 if ($VCLibs -and (Test-Path -LiteralPath $VCLibs)) {
     Copy-Item -LiteralPath $VCLibs -Destination (Join-Path $Salida 'Dependencies') -Force
 }
@@ -144,4 +158,11 @@ if ($VCLibs -and (Test-Path -LiteralPath $VCLibs)) {
 'paquete: {0} ({1:N0} B, SHA-256 {2})' -f $msix, (Get-Item -LiteralPath $msix).Length, (Get-FileHash -LiteralPath $msix).Hash
 'ejecutable: {0:N0} B, SHA-256 {1}' -f (Get-Item -LiteralPath $exe).Length, (Get-FileHash -LiteralPath $exe).Hash
 'mods: ' + ((Get-ChildItem -LiteralPath $modsDst -Directory | ForEach-Object { $_.Name }) -join ', ')
-"trabajo: $trabajo"
+
+# La carpeta de trabajo lleva dentro el ejecutable del juego y los mods: no se deja en %TEMP%
+# salvo que se pida con -Conservar para inspeccionar lo que se empaqueto.
+if ($Conservar) {
+    "trabajo (conservado): $trabajo"
+} else {
+    [IO.Directory]::Delete($trabajo, $true)
+}

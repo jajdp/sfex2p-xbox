@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # La carpeta de datos del juego en la consola.
 #
 # Este framework ancla TODOS sus archivos —game.toml, el disco, la BIOS, settings.toml, las tarjetas de memoria,
@@ -15,13 +14,9 @@
 #
 # Idempotente y todo o nada; escritura atómica.
 # Uso: parche_uwp_rutas.py <raíz del proyecto del juego>
-import os
-import sys
+import parchear
 
-if len(sys.argv) < 2:
-    sys.exit('uso: %s <ruta de la raiz del proyecto del juego>' % os.path.basename(sys.argv[0]))
-RAIZ = sys.argv[1]
-MARCA = 'Recompilaciones (2026-10-05): la carpeta de datos de la consola'
+MARCA = 'Recompilaciones (2026-10-05): the console data folder'
 
 VIEJO = '''static std::filesystem::path exe_dir_from_argv(const char* argv0) {
     namespace fs = std::filesystem;
@@ -31,10 +26,10 @@ VIEJO = '''static std::filesystem::path exe_dir_from_argv(const char* argv0) {
 
 NUEVO = '''#if defined(PSX_UWP)
 /* ''' + MARCA + '''.
- * En la consola el directorio del ejecutable es la carpeta de instalación del paquete, de solo lectura, así que
- * el ancla pasa a ser la carpeta de datos de la aplicación (LocalState), que es donde se suben el disco y la
- * BIOS y donde se puede escribir. Se saca del Temp del paquete («…\\AC\\Temp» → dos niveles arriba), igual que
- * en la entrada UWP, para no depender de la Windows Runtime. */
+ * On the console the executable's directory is the package's install folder, which is read-only, so the anchor
+ * becomes the app's data folder (LocalState): that is where the disc and the BIOS are uploaded, and it is
+ * writable. It is derived from the package's Temp directory ("...\\AC\\Temp", two levels up), the same way the
+ * UWP entry point does it, so that the Windows Runtime does not have to be up yet. */
 #ifndef PSX_UWP_DATA_DIR
 #define PSX_UWP_DATA_DIR L"PSXRecomp\\\\SLUS-01105"
 #endif
@@ -73,21 +68,9 @@ static std::filesystem::path exe_dir_from_argv(const char* argv0) {
 
 
 def main():
-    ruta = os.path.join(RAIZ, 'psxrecomp', 'runtime', 'src', 'main.cpp')
-    with open(ruta, 'rb') as f:
-        crudo = f.read().decode('utf-8')
-    eol = '\r\n' if '\r\n' in crudo else '\n'
-    t = crudo.replace('\r\n', '\n')
-    if MARCA in t:
-        print('el parche ya estaba')
-        return
-    if t.count(VIEJO) != 1:
-        raise SystemExit('main.cpp: %d apariciones del ancla' % t.count(VIEJO))
-    t = t.replace(VIEJO, NUEVO)
-    with open(ruta + '.tmp', 'w', encoding='utf-8', newline='') as f:
-        f.write(t.replace('\n', eol))
-    os.replace(ruta + '.tmp', ruta)
-    print('main.cpp: el ancla del runtime pasa a LocalState en la consola')
+    parchear.informe(parchear.aplicar(
+        parchear.runtime(parchear.raiz(), 'src', 'main.cpp'),
+        [(VIEJO, NUEVO)], MARCA, 'main.cpp: el ancla del runtime pasa a LocalState en la consola'))
 
 
 if __name__ == '__main__':

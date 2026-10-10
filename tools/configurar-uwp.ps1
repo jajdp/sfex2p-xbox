@@ -59,4 +59,8 @@ $orden = "`"$vcvars`" x64 uwp >nul && cmake $opciones"
 if ($Compilar) { $orden += " && cmake --build `"$Build`" --target psx-runtime" }
 "orden: $orden" | Out-File -FilePath $registro -Encoding utf8
 cmd /c $orden 2>&1 | Tee-Object -FilePath $registro -Append | Select-Object -Last 35
-"`n== código de salida: $LASTEXITCODE  (registro completo: $registro)"
+$codigo = $LASTEXITCODE
+"`n== código de salida: $codigo  (registro completo: $registro)"
+# El codigo se propaga: encadenar esto con el empaquetado tiene que pararse aqui si CMake fallo.
+# Solo se ven las ultimas 35 lineas, asi que un fallo pasa desapercibido si el script sale con 0.
+exit $codigo

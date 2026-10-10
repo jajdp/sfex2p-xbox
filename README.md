@@ -10,10 +10,6 @@ It is not a theory: the game boots, goes through the BIOS and the Capcom present
 screen and plays with a controller, in 16:9, at **60 FPS**, and it comes back where you left it after the
 console suspends it.
 
-*There was a screenshot of that here. It is gone on purpose: it was the title screen, which is mostly
-Capcom's logo and trademark, and leading a page with someone else's artwork is not what
-[`NOTICE.md`](NOTICE.md) says this project does.*
-
 ## What this repository is
 
 **A recipe and the tools that apply it.** The game's framework has no UWP support at all, so the port is a

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Lo que la consola tiene que poder ESCRIBIR: tarjetas de memoria y estados.
 #
 # Hallado el 2026-10-06 probando la reanudación, en el registro de la consola:
@@ -17,12 +16,8 @@
 #
 # Idempotente y todo o nada; escritura atómica. Los comentarios del código van en inglés, como el resto del runtime.
 # Uso: parche_uwp_escritura.py <raíz del proyecto del juego>
-import os
-import sys
+import parchear
 
-if len(sys.argv) < 2:
-    sys.exit('uso: %s <ruta de la raiz del proyecto del juego>' % os.path.basename(sys.argv[0]))
-RAIZ = sys.argv[1]
 MARCA = 'Recompilaciones (2026-10-06): writable state on the console'
 
 VIEJO = '''    /* Resolve the effective memory-card directory now (before the launcher) so
@@ -60,21 +55,9 @@ NUEVO = '''#if defined(PSX_UWP)
 
 
 def main():
-    ruta = os.path.join(RAIZ, 'psxrecomp', 'runtime', 'src', 'main.cpp')
-    with open(ruta, 'rb') as f:
-        crudo = f.read().decode('utf-8')
-    eol = '\r\n' if '\r\n' in crudo else '\n'
-    t = crudo.replace('\r\n', '\n')
-    if MARCA in t:
-        print('el parche ya estaba')
-        return
-    if t.count(VIEJO) != 1:
-        raise SystemExit('main.cpp: %d apariciones del ancla' % t.count(VIEJO))
-    t = t.replace(VIEJO, NUEVO)
-    with open(ruta + '.tmp', 'w', encoding='utf-8', newline='') as f:
-        f.write(t.replace('\n', eol))
-    os.replace(ruta + '.tmp', ruta)
-    print('main.cpp: en la consola, las tarjetas y los estados van a la carpeta de datos')
+    parchear.informe(parchear.aplicar(
+        parchear.runtime(parchear.raiz(), 'src', 'main.cpp'),
+        [(VIEJO, NUEVO)], MARCA, 'main.cpp: en la consola, las tarjetas y los estados van a la carpeta de datos'))
 
 
 if __name__ == '__main__':

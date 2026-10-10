@@ -22,20 +22,18 @@
 # Uso: parche_uwp_plugin_16_9.py <raíz del proyecto del juego>
 import os
 import re
-import sys
 
-if len(sys.argv) < 2:
-    sys.exit('uso: %s <ruta de la raiz del proyecto del juego>' % os.path.basename(sys.argv[0]))
-RAIZ = sys.argv[1]
-MARCA = 'Recompilaciones (2026-10-05): el plugin del 16:9 sin recomp-ui'
+import parchear
+
+MARCA = 'Recompilaciones (2026-10-05): the 16:9 plugin without recomp-ui'
 MARCA2 = 'Recompilaciones (2026-10-05): MSVC'
 
 JUEGO_VIEJO = '''if(CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")'''
 
-JUEGO_NUEVO = '''# ''' + MARCA + '''. El 16:9 es propiedad del mod sfex2p.widescreen y el mod
-# exige su plugin de confianza dentro del ejecutable. El framework solo compila CODEGEN_SETUP_SOURCES cuando hay
-# recomp-ui (su otro archivo necesita las cabeceras del lanzador), y en la consola recomp-ui va apagado: sin esto,
-# el runtime se niega a arrancar con «trusted plugin is unavailable: sfex2p.widescreen».
+JUEGO_NUEVO = '''# ''' + MARCA + '''. Widescreen belongs to the sfex2p.widescreen mod, and the
+# mod demands its trusted plugin inside the executable. The framework only compiles CODEGEN_SETUP_SOURCES when
+# recomp-ui is present (its other file needs the launcher's headers), and recomp-ui is off on the console:
+# without this, the runtime refuses to start with "trusted plugin is unavailable: sfex2p.widescreen".
 if(NOT PSX_RECOMP_UI)
     target_sources(psx-runtime PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/sfex2p_widescreen.c")
 endif()
@@ -46,51 +44,30 @@ if(CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")'''
 MOD_PATRON = re.compile(
     r'( *)static (void \(__cdecl\* name##_constructor\)\(void\) = name;)( *)\\\n')
 MOD_CAMBIO = (
-    '\\1/* ' + MARCA2 + ': sin `static` y con /include:, para que el enlazador no se lleve\\3\\\\\n'
-    '\\1 * por delante un inicializador al que nadie hace referencia: el plugin no se registraría. */\\3\\\\\n'
+    '\\1/* ' + MARCA2 + ': no `static`, plus /include:, so the linker does not drop an\\3\\\\\n'
+    '\\1 * initializer nothing references: the plugin would never register. */\\3\\\\\n'
     '\\1\\2\\3\\\\\n'
     '\\1__pragma(comment(linker, "/include:" #name "_constructor"))\\3\\\\\n')
 
 
-def parchear(ruta, viejo, nuevo, marca, codificacion='utf-8'):
-    with open(ruta, 'rb') as f:
-        crudo = f.read().decode(codificacion)
-    eol = '\r\n' if '\r\n' in crudo else '\n'
-    t = crudo.replace('\r\n', '\n')
-    if marca in t:
-        return False
-    if t.count(viejo) != 1:
-        raise SystemExit('%s: %d apariciones del ancla' % (os.path.basename(ruta), t.count(viejo)))
-    t = t.replace(viejo, nuevo)
-    with open(ruta + '.tmp', 'w', encoding=codificacion, newline='') as f:
-        f.write(t.replace('\n', eol))
-    os.replace(ruta + '.tmp', ruta)
-    return True
-
-
 def parchear_macro(ruta):
-    with open(ruta, 'rb') as f:
-        crudo = f.read().decode('utf-8-sig')
-    eol = '\r\n' if '\r\n' in crudo else '\n'
-    t = crudo.replace('\r\n', '\n')
-    if MARCA2 in t:
-        return False
-    t2, n = MOD_PATRON.subn(MOD_CAMBIO, t)
+    """La macro del registro va por expresión regular: hay que respetar su alineación y sus `\\`."""
+    texto, eol = parchear.leer(ruta, 'utf-8-sig')
+    if MARCA2 in texto:
+        return None
+    nuevo, n = MOD_PATRON.subn(MOD_CAMBIO, texto)
     if n != 1:
         raise SystemExit('mod_plugins.h: %d apariciones del ancla' % n)
-    with open(ruta + '.tmp', 'w', encoding='utf-8-sig', newline='') as f:
-        f.write(t2.replace('\n', eol))
-    os.replace(ruta + '.tmp', ruta)
-    return True
+    parchear.escribir(ruta, nuevo, eol, 'utf-8-sig')
+    return 'mod_plugins.h (el registro sobrevive al enlazador de MSVC)'
 
 
 def main():
-    hechos = []
-    if parchear(os.path.join(RAIZ, 'CMakeLists.txt'), JUEGO_VIEJO, JUEGO_NUEVO, MARCA):
-        hechos.append('CMakeLists.txt (el plugin se compila sin recomp-ui)')
-    if parchear_macro(os.path.join(RAIZ, 'psxrecomp', 'runtime', 'include', 'mod_plugins.h')):
-        hechos.append('mod_plugins.h (el registro sobrevive al enlazador de MSVC)')
-    print('; '.join(hechos) if hechos else 'el parche ya estaba')
+    raiz = parchear.raiz()
+    parchear.informe(
+        parchear.aplicar(os.path.join(raiz, 'CMakeLists.txt'), [(JUEGO_VIEJO, JUEGO_NUEVO)], MARCA,
+                         'CMakeLists.txt (el plugin se compila sin recomp-ui)'),
+        parchear_macro(parchear.runtime(raiz, 'include', 'mod_plugins.h')))
 
 
 if __name__ == '__main__':

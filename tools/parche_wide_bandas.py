@@ -14,13 +14,10 @@
 #
 # Idempotente y todo o nada; escritura atómica. Los comentarios del código van en inglés, como el resto del runtime.
 # Uso: parche_wide_bandas.py <raíz del proyecto del juego>
-import os
 import re
-import sys
 
-if len(sys.argv) < 2:
-    sys.exit('uso: %s <ruta de la raiz del proyecto del juego>' % os.path.basename(sys.argv[0]))
-RAIZ = sys.argv[1]
+import parchear
+
 MARCA = 'Recompilaciones (2026-10-06): wide pass clipped to the margins'
 
 AYUDA_VIEJA = '''static inline int wide_min3(int a, int b, int c) {'''
@@ -74,11 +71,8 @@ LLAMADAS = ['raster_flat_triangle', 'raster_gouraud_triangle', 'raster_textured_
 
 
 def main():
-    ruta = os.path.join(RAIZ, 'psxrecomp', 'runtime', 'src', 'gpu_sw_renderer.c')
-    with open(ruta, 'rb') as f:
-        crudo = f.read().decode('utf-8')
-    eol = '\r\n' if '\r\n' in crudo else '\n'
-    t = crudo.replace('\r\n', '\n')
+    ruta = parchear.runtime(parchear.raiz(), 'src', 'gpu_sw_renderer.c')
+    t, eol = parchear.leer(ruta)
     if MARCA in t:
         print('el parche ya estaba')
         return
@@ -91,11 +85,11 @@ def main():
     for llamada in LLAMADAS:
         t, n = envolver(t, llamada)
         total += n
-    if total < 6:
-        raise SystemExit('solo se envolvieron %d llamadas de 6' % total)
-    with open(ruta + '.tmp', 'w', encoding='utf-8', newline='') as f:
-        f.write(t.replace('\n', eol))
-    os.replace(ruta + '.tmp', ruta)
+    # Exactamente seis: una de más significa que la expresión regular cogió algo que no era una
+    # guarda del empalme, y entonces lo envuelto no es lo que este parche cree.
+    if total != len(LLAMADAS):
+        raise SystemExit('se envolvieron %d llamadas y son %d' % (total, len(LLAMADAS)))
+    parchear.escribir(ruta, t, eol)
     print('gpu_sw_renderer.c: %d llamadas recortadas a sus bandas' % total)
 
 

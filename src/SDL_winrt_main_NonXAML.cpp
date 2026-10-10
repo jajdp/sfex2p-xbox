@@ -1,5 +1,13 @@
-/*
+﻿/*
     SDL_winrt_main_NonXAML.cpp, placed in the public domain by David Ludwig  3/13/14
+
+    MODIFIED by Recompilaciones for jajdp/sfex2p-xbox, 2026: the original is SDL's WinRT entry
+    point (github.com/libsdl-org/SDL) and everything it does is still here. What this copy adds,
+    marked in place, is the preparation this port needs before SDL starts — seeding the app's
+    writable data folder, joining the disc uploaded in parts, writing the bios.cfg / disc.cfg
+    pointers, redirecting the runtime's output to a log the Device Portal can read — plus the
+    activation state the resume patch reads and the main() that vccorlib demands under /ZW.
+    See NOTICE.md.
 */
 
 #include "SDL_main.h"
@@ -75,8 +83,8 @@ int estado_previo()
 
 int SDL_main_with_core_exit(int argc, char* argv[])
 {
-    // v2 (0.2.9.0): en la consola AppInstance da nulo; el estado lo anota SDL al recibir la activación
-    // (SDL_WinRTApp::OnAppActivated, parche de SDL de este mismo script). Aquí solo se usa si AppInstance responde.
+    // En la consola AppInstance devuelve nulo; el estado lo anota SDL al recibir la activación
+    // (SDL_WinRTApp::OnAppActivated). Aquí solo se usa si AppInstance responde.
     {
         const int e = estado_previo();
         if (e >= 0) g_psx_prev_exec_state = e;
@@ -105,19 +113,22 @@ int SDL_main_with_core_exit(int argc, char* argv[])
 // la Windows Runtime antes de SDL_WinRTRunApp.
 // El disco entero (447 MB) da 500 al subirlo por el portal, que pasa por D:\DevelopmentFiles. Se sube partido
 // en «<nombre>.parte1», «<nombre>.parte2»… dentro de disc\ y aquí se une una sola vez (las partes se quedan).
-// Receta de la entrada UWP de Melee (Decompilaciones, 2026-10-01) y del port de SF EX Plus Alpha.
 
 const wchar_t* const SERIE = L"SLUS-01105";   // el identificador del juego (game.toml [game] id)
 
+// La misma cuenta que hace psx_uwp_data_root() en main.cpp (parche_uwp_rutas.py), que es quien la usa
+// durante la partida: si una cambia, la otra también. Vacío si no se puede averiguar.
 std::wstring raiz_juego()
 {
     wchar_t tmp[MAX_PATH] = {};
     const DWORD n = GetTempPathW(MAX_PATH, tmp);
+    if (n == 0 || n >= MAX_PATH) return std::wstring();
     std::wstring t(tmp, n);
-    if (!t.empty() && (t.back() == L'\\' || t.back() == L'/')) t.pop_back();
+    while (!t.empty() && (t.back() == L'\\' || t.back() == L'/')) t.pop_back();
     for (int i = 0; i < 2; ++i) {
         const size_t p = t.find_last_of(L"\\/");
-        if (p != std::wstring::npos) t.resize(p);
+        if (p == std::wstring::npos) return std::wstring();
+        t.resize(p);
     }
     return t + L"\\LocalState\\PSXRecomp\\" + SERIE + L"\\";
 }
@@ -198,6 +209,7 @@ std::wstring primero(const std::wstring& carpeta, const wchar_t* patron)
 void une_partes()
 {
     const std::wstring raiz = raiz_juego();
+    if (raiz.empty()) return;
     const std::wstring disco = raiz + L"disc\\";
     WIN32_FIND_DATAW d = {};
     HANDLE h = FindFirstFileExW((disco + L"*.parte1").c_str(), FindExInfoBasic, &d, FindExSearchNameMatch, nullptr, 0);
@@ -213,32 +225,46 @@ void une_partes()
         anota(raiz, "partes: no se pudo crear el archivo unido");
         return;
     }
+    // Toda escritura se comprueba: un disco lleno dejaría un archivo truncado que, renombrado,
+    // pasaría por el disco bueno y el juego fallaría mucho más tarde y por otro sitio. Si algo
+    // sale mal, el .uniendo se queda y NO se renombra, así que el siguiente arranque reintenta.
     std::vector<char> buf(8u << 20);
     unsigned long long total = 0;
     int partes = 0;
+    const char* fallo = nullptr;
     for (int i = 1;; ++i) {
         FILE* in = nullptr;
         if (_wfopen_s(&in, (destino + L".parte" + std::to_wstring(i)).c_str(), L"rb") != 0 || !in) break;
         size_t leidos;
         while ((leidos = std::fread(buf.data(), 1, buf.size(), in)) > 0) {
-            std::fwrite(buf.data(), 1, leidos, out);
+            if (std::fwrite(buf.data(), 1, leidos, out) != leidos) { fallo = "no se pudo escribir (disco lleno?)"; break; }
             total += leidos;
         }
+        if (!fallo && std::ferror(in)) fallo = "no se pudo leer una de las partes";
         std::fclose(in);
+        if (fallo) break;
         ++partes;
     }
+    if (!fallo && partes == 0) fallo = "no habia ninguna parte que unir";
+    if (!fallo && std::fflush(out) != 0) fallo = "no se pudo volcar lo escrito";
     std::fclose(out);
+
     char msg[200];
-    if (MoveFileExW(tmp.c_str(), destino.c_str(), MOVEFILE_REPLACE_EXISTING))
+    if (fallo) {
+        std::snprintf(msg, sizeof msg, "partes: %s; quedan %d unidas de %llu bytes sin renombrar",
+                      fallo, partes, total);
+    } else if (MoveFileExW(tmp.c_str(), destino.c_str(), MOVEFILE_REPLACE_EXISTING)) {
         std::snprintf(msg, sizeof msg, "partes: %d unidas, %llu bytes", partes, total);
-    else
+    } else {
         std::snprintf(msg, sizeof msg, "partes: no se pudo renombrar (error %lu)", GetLastError());
+    }
     anota(raiz, msg);
 }
 
 void prepara_datos()
 {
     const std::wstring raiz = raiz_juego();
+    if (raiz.empty()) return;
     const std::wstring inst = carpeta_instalacion();
 
     // 1. el esqueleto
@@ -264,8 +290,17 @@ void prepara_datos()
     if (existe(inst + L"mods")) copia_arbol(inst + L"mods\\", raiz + L"mods\\", false);
     if (existe(inst + L"bios")) copia_arbol(inst + L"bios\\", raiz + L"bios\\", true);
 
-    // 3. los punteros a la BIOS y al disco, con ruta absoluta. La BIOS del jugador (SCPH-1001) se sube a
-    //    bios\; el disco, a disc\. Si no están todavía, no se escribe nada y el runtime avisará.
+    anota(raiz, "datos: carpeta lista y sembrada");
+}
+
+// Los punteros que el runtime lee para saber dónde están la BIOS y el disco, con RUTA ABSOLUTA: una
+// relativa se resolvería contra el directorio de trabajo, que no es este. Va DESPUÉS de unir el disco,
+// porque hasta entonces en disc\ solo hay partes y no habría a qué apuntar. Si todavía no están, no se
+// escribe nada y el runtime lo avisa por su cuenta.
+void escribe_punteros()
+{
+    const std::wstring raiz = raiz_juego();
+    if (raiz.empty()) return;
     const std::wstring bios = primero(raiz + L"bios\\", L"SCPH*.BIN");
     if (!bios.empty()) escribe_linea(raiz + L"bios.cfg", bios);
     std::wstring cue = primero(raiz + L"disc\\", L"*.cue");
@@ -273,7 +308,7 @@ void prepara_datos()
     if (!cue.empty()) escribe_linea(raiz + L"disc.cfg", cue);
 
     char msg[400];
-    std::snprintf(msg, sizeof msg, "datos: raiz lista; bios=%s disco=%s",
+    std::snprintf(msg, sizeof msg, "punteros: bios=%s disco=%s",
                   bios.empty() ? "(falta)" : "ok", cue.empty() ? "(falta)" : "ok");
     anota(raiz, msg);
 }
@@ -284,6 +319,7 @@ void prepara_datos()
 void redirige_salida()
 {
     const std::wstring raiz = raiz_juego();
+    if (raiz.empty()) return;
     FILE* f = nullptr;
     if (_wfreopen_s(&f, (raiz + L"logs\\salida.txt").c_str(), L"w", stdout) == 0 && f)
         setvbuf(stdout, nullptr, _IONBF, 0);
@@ -296,12 +332,12 @@ void redirige_salida()
 
 int CALLBACK WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 {
-    prepara_datos();
-    redirige_salida();
-    une_partes();
-    prepara_datos();   // tras unir el disco, el puntero ya puede apuntar al archivo unido
+    prepara_datos();      // la carpeta de datos y lo que trae el paquete
+    redirige_salida();    // y desde aquí, lo que cuente el runtime queda en logs\
+    une_partes();         // el disco, que el Device Portal no deja subir entero
+    escribe_punteros();   // ya se puede apuntar al disco unido
     // En la Xbox, B es también el «atrás» del sistema: si nadie lo atiende, cierra la app. Con esta
-    // pista SDL lo atiende y la pulsación sigue llegando al juego (receta de Melee, 2026-10-01).
+    // pista SDL lo atiende y la pulsación sigue llegando al juego.
     SDL_SetHint(SDL_HINT_WINRT_HANDLE_BACK_BUTTON, "1");
     return SDL_WinRTRunApp(SDL_main_with_core_exit, NULL);
 }

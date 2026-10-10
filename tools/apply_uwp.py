@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Aplica el perfil UWP completo a un árbol de Street Fighter EX2 Plus (PSXRecomp).
 
 Uso:
@@ -17,15 +16,26 @@ Recompilaciones — https://github.com/jajdp/sfex2p-xbox
 PolyForm Noncommercial License 1.0.0
 """
 import os
-import shutil
 import subprocess
 import sys
+
+import parchear
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HERR = os.path.join(REPO, 'tools')
 ENTRADA = os.path.join(REPO, 'src', 'SDL_winrt_main_NonXAML.cpp')
 
 MARCA = 'sfex2p-xbox (Recompilaciones)'
+PROYECTO_BASE = 'strider973/Street-Fighter-EX2-Plus-Recompiled'
+
+# Los pasos informan en castellano, con acentos, y la consola de Windows arranca en una página de
+# códigos que no los tiene (cp1252 o cp850): sin esto, imprimir el informe de un paso levanta un
+# UnicodeEncodeError y el perfil se interrumpe a media aplicación. Se arregla aquí, para la salida
+# propia, y en el entorno de los subprocesos, para la suya.
+for flujo in (sys.stdout, sys.stderr):
+    if hasattr(flujo, 'reconfigure'):
+        flujo.reconfigure(encoding='utf-8', errors='replace')
+ENTORNO_HIJOS = dict(os.environ, PYTHONIOENCODING='utf-8:replace', PYTHONUTF8='1')
 
 # El orden importa: el perfil primero, y las dos pasadas del ancho al final, la de bandas sobre la del
 # empalme. Cada paso dice qué resuelve; el detalle está en docs/HOW-IT-WORKS.md.
@@ -88,23 +98,20 @@ def main():
     os.makedirs(os.path.dirname(destino), exist_ok=True)
     with open(ENTRADA, 'rb') as f:
         fuente = f.read()
-    if not os.path.isfile(destino) or open(destino, 'rb').read() != fuente:
+    actual = None
+    if os.path.isfile(destino):
+        with open(destino, 'rb') as f:
+            actual = f.read()
+    if actual != fuente:
         with open(destino, 'wb') as f:
             f.write(fuente)
         hechos.append('UWP/SDL_winrt_main_NonXAML.cpp')
 
     cmake = os.path.join(raiz, 'CMakeLists.txt')
-    with open(cmake, 'rb') as f:
-        crudo = f.read().decode('utf-8')
-    eol = '\r\n' if '\r\n' in crudo else '\n'
-    texto = crudo.replace('\r\n', '\n')
+    texto, eol = parchear.leer(cmake)
     if 'SDL_winrt_main_NonXAML.cpp' not in texto:
         # Al final del archivo: no hace falta ancla, y así no se copia nada del CMakeLists del proyecto.
-        texto = texto.rstrip('\n') + '\n' + BLOQUE_ENTRADA
-        tmp = cmake + '.tmp'
-        with open(tmp, 'w', encoding='utf-8', newline='') as f:
-            f.write(texto.replace('\n', eol))
-        os.replace(tmp, cmake)
+        parchear.escribir(cmake, texto.rstrip('\n') + '\n' + BLOQUE_ENTRADA, eol)
         hechos.append('CMakeLists.txt: la entrada WinRT registrada')
 
     # 2. Los parches, en orden.
@@ -114,7 +121,7 @@ def main():
             sys.exit('falta en el repositorio: tools/%s' % script)
         print('-- %-30s %s' % (script, que))
         r = subprocess.run([sys.executable, ruta, raiz], capture_output=True, text=True,
-                           encoding='utf-8', errors='replace')
+                           encoding='utf-8', errors='replace', env=ENTORNO_HIJOS)
         salida = (r.stdout or '').strip()
         if salida:
             print('\n'.join('   ' + l for l in salida.split('\n')))
@@ -122,10 +129,15 @@ def main():
             print((r.stderr or '').strip())
             sys.exit('\nse detuvo en %s (nada más se aplicó). El árbol no es el que este paso espera: '
                      'comprueba que es %s sin modificar y que los pasos anteriores están puestos.'
-                     % (script, 'strider973/Street-Fighter-EX2-Plus-Recompiled'))
-        hechos.append(script)
+                     % (script, PROYECTO_BASE))
+        if salida and 'ya estaba' not in salida:
+            hechos.append(script)
 
-    print('\nListo: %d pasos aplicados.' % len(hechos))
+    if hechos:
+        print('\nListo: %d de los %d pasos escribieron algo; el resto ya estaba puesto.'
+              % (len(hechos), len(PASOS) + 1))
+    else:
+        print('\nListo: el perfil UWP ya estaba aplicado entero, no hubo nada que cambiar.')
     print('Ahora: tools/configurar-uwp.ps1 para configurar y compilar (docs/INSTALL.es.md §4).')
     return 0
 

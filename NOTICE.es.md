@@ -28,11 +28,14 @@ este repositorio no da ninguna de las tres, ni puede darlas.
 
 ## Lo que sí contiene de obra ajena
 
-**Parches contra el framework PSXRecomp.** Los dieciséis scripts citan en total **117 líneas**
-del código del framework: son las anclas que cada parche comprueba antes de escribir, para
-fallar del lado seguro en vez de estropear un árbol que no reconoce. PSXRecomp lo publica su
-autor bajo la PolyForm Noncommercial License 1.0.0, que permite obras derivadas no comerciales;
-este repositorio es una de ellas y se publica bajo [esa misma licencia](LICENSE).
+**Parches contra el framework PSXRecomp.** Los dieciséis scripts de parcheo —todo el código de
+parcheo que hay aquí— citan en total **117 líneas** del código del framework: son las anclas que
+cada parche comprueba antes de escribir, para fallar del lado seguro en vez de estropear un árbol
+que no reconoce. PSXRecomp lo publica su autor bajo la PolyForm
+Noncommercial License 1.0.0, que permite obras derivadas no comerciales; este repositorio es una
+de ellas y se publica bajo [esa misma licencia](LICENSE) — el texto canónico de
+polyformproject.org, que es el que nombra el identificador `PolyForm-Noncommercial-1.0.0`. La
+copia que distribuye el framework es una variante abreviada de ese texto.
 
 **Cero líneas del proyecto del juego.** `strider973/Street-Fighter-EX2-Plus-Recompiled` no tiene
 licencia, así que de él no se reproduce nada. El instalador se ancla en los nombres de
