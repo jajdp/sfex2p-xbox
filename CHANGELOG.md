@@ -2,6 +2,15 @@
 
 All notable changes to this port. Dates are `YYYY-MM-DD`.
 
+## [1.0.6] — 2026-10-20
+
+### Changed
+
+- **The README now says which console this was tested on, and which one it was not.** Everything here
+  was built and measured on an **Xbox Series X** in Developer Mode; a **Series S has never been tried**,
+  so nothing here says anything about one. The wording used to say "Xbox Series", which reads as if it
+  covered both, and it does not.
+
 ## [1.0.5] — 2026-10-13
 
 ### Added
@@ -186,7 +195,7 @@ They will stop with "0 apariciones del ancla" rather than patch anything twice.
 
 ## [1.0.0] — 2026-10-08
 
-First public release of the recipe. The port itself has been running on an Xbox Series in
+First public release of the recipe. The port itself has been running on an Xbox Series X in
 Developer Mode since 2026-10-05: boots through the BIOS and the Capcom presentation, reaches
 the title screen, plays with a controller in 16:9 at 60 FPS, and resumes where it left off
 after the console suspends it.

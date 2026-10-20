@@ -2,7 +2,7 @@
 
 Cómo coger la recompilación estática de *Street Fighter EX2 Plus* (PlayStation, 1999,
 `SLUS-01105`) sobre [PSXRecomp](https://github.com/RetroPortingToolKit/psxrecomp) y hacerla
-correr **en una Xbox Series en modo desarrollador**, como un paquete UWP que compilas y firmas
+correr **en una Xbox Series X en modo desarrollador**, como un paquete UWP que compilas y firmas
 tú.
 
 *(English: [README.md](README.md))*
@@ -10,6 +10,16 @@ tú.
 No es teoría: el juego arranca, pasa por la BIOS y la presentación de Capcom, llega al título y
 se juega con mando, en 16:9, a **60 FPS**, y vuelve donde lo dejaste cuando la consola lo
 suspende.
+
+## En qué consola se probó
+
+**En una Xbox Series X**, en modo desarrollador. Las dos consolas en las que se construyó y se probó esto
+son Series X, así que es el único hardware al que se refiere cualquier cosa que se afirme aquí.
+
+**En una Series S no se ha probado nunca, ni una vez.** Es otra máquina: menos memoria disponible para un
+juego y una GPU más floja. Puede que funcione en una, puede que vaya más despacio, o puede que no
+arranque; nada de aquí se ha medido en ella. Si lo ejecutas en una Series S, lo que obtengas no es lo que
+dice este README, y ninguna de las cifras de aquí es una promesa sobre esa consola.
 
 ## Qué es este repositorio
 
