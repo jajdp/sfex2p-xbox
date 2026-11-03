@@ -96,6 +96,17 @@ The 16:9 and the Spanish menus are their own repositories, and the packer takes 
 
 ## Credits and license
 
+**Almost none of what makes this work is ours.** This repository is a recipe that glues together other people's work; without any one of these pieces there would be no port at all.
+
+| What it does | Who made it | License |
+|---|---|---|
+| **[psxrecomp](https://github.com/RetroPortingToolKit/psxrecomp)** — the PlayStation static recompiler ecosystem | **RetroPortingToolKit** | PolyForm Noncommercial 1.0.0 |
+| **[Street-Fighter-EX2-Plus-Recompiled](https://github.com/strider973/Street-Fighter-EX2-Plus-Recompiled)** — recompiles *Street Fighter EX2 Plus* | **strider973** | none declared |
+| **[SDL](https://github.com/libsdl-org/SDL)** — window, input and audio | **Sam Lantinga** and the SDL contributors | zlib |
+
+**The packaging recipe, the tooling and this documentation** are by **Recompilaciones**.
+
+
 Port and tooling by **Recompilaciones**. Released under the
 [PolyForm Noncommercial License 1.0.0](LICENSE), matching the license of the PSXRecomp framework this is a
 derivative of.
