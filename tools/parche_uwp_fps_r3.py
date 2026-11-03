@@ -6,7 +6,7 @@
 # no hay en la consola es cómo encenderlo: el atajo del framework es una TECLA, y allí no hay teclado.
 #
 # Se ata al botón **R3** (pulsar el stick derecho): el mando va en modo digital, donde los clics de los sticks del
-# DualShock no existen, así que el juego nunca ve ese botón, y es el mismo de los otros dos ports de la casa.
+# DualShock no existen, así que el juego nunca ve ese botón.
 #
 # ⚠ DÓNDE VA LA COMPROBACIÓN. Ni en el bucle de eventos de SDL —que es el bombeo que evita que la ventana se
 # congele, y el evento del botón no llega ahí— ni dentro de `pad_buttons_for()` preguntando a SDL, porque esa

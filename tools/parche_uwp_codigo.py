@@ -24,7 +24,7 @@ CAMBIOS = [
     if (!g_headless) MessageBoxA(NULL, msg.c_str(), title, MB_OK | MB_ICONINFORMATION);
 #endif'''),
 
-    # 2. la variable que usa el SDL2 parcheado del otro port
+    # 2. la variable que el SDL2 compilado para WindowsStore espera encontrar definida
     ('''static std::string s_picker_game_name = "PSXRecomp";''',
      '''/* ''' + MARCA + ''': the SDL2 built for WindowsStore records here how the app was
  * activated: 0 = normal start, 3 = the console had terminated it, 4 = the user closed it. It has to be

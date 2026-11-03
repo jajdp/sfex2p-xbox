@@ -2,6 +2,18 @@
 
 All notable changes to this port. Dates are `YYYY-MM-DD`.
 
+## [1.0.8] — 2026-11-03
+
+### Changed
+
+- **Passages that introduced a fact as "the same as in the other port" now state the fact.** They
+  named no repository, so there was nothing for the reader to go and look up, and the fact itself
+  went unsaid. Two tool comments: the variable the WindowsStore SDL2 expects, and why R3 is free.
+
+  Still said, because the reader can act on it: everything that is **not** ours — the upstream
+  project, the third-party forks, the files taken under their own license — and the sentences that
+  place this port among others without naming any, which stand on their own.
+
 ## [1.0.7] — 2026-11-03
 
 ### Changed
