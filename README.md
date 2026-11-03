@@ -89,10 +89,9 @@ log said in each case, is in **[`docs/HOW-IT-WORKS.md`](docs/HOW-IT-WORKS.md)**.
 
 ## The mods are separate
 
-The 16:9 and the Spanish menus are their own repositories, and the packer takes them with `-Mod`:
-
-- [jajdp/sfex2p-widescreen](https://github.com/jajdp/sfex2p-widescreen) — real 16:9
-- [jajdp/sfex2p-es](https://github.com/jajdp/sfex2p-es) — Spanish menus
+Mods are not part of this port: the packer takes any of them with `-Mod`, pointing it at the
+mod's own package. This port was tested with two — a real 16:9 and the menus in Spanish — each
+built and distributed on its own.
 
 ## Credits and license
 

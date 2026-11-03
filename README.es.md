@@ -92,10 +92,9 @@ con lo que decía el registro en cada caso, está en
 
 ## Los mods van aparte
 
-El 16:9 y el menú en español son sus propios repositorios, y el empaquetador los toma con `-Mod`:
-
-- [jajdp/sfex2p-widescreen](https://github.com/jajdp/sfex2p-widescreen) — 16:9 de verdad
-- [jajdp/sfex2p-es](https://github.com/jajdp/sfex2p-es) — los menús en español
+Los mods no son parte de este port: el empaquetador toma cualquiera de ellos con `-Mod`, apuntando
+al paquete del propio mod. Este port se probó con dos —un 16:9 de verdad y los menús en español—,
+cada uno construido y distribuido por su cuenta.
 
 ## Créditos y licencia
 

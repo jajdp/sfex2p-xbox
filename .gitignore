@@ -74,6 +74,6 @@ desktop.ini
 # The package tiles are supplied by whoever packages (docs/ASSETS.md); no game art is distributed here.
 package/Assets/*.png
 
-# parche_fondo_cadena.py stays out: it fixed the drawing chain inside the 16:9 mod's plugin, and that
-# fix is already part of the plugin jajdp/sfex2p-widescreen publishes.
+# parche_fondo_cadena.py stays out: it fixed the drawing chain inside the 16:9 mod's plugin, and
+# that fix is already part of the plugin that mod publishes.
 tools/parche_fondo_cadena.py
